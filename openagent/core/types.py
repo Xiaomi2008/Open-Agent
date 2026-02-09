@@ -1,0 +1,81 @@
+from __future__ import annotations
+
+import uuid
+from dataclasses import dataclass, field
+from typing import Any, Literal, Union
+
+
+@dataclass
+class TextBlock:
+    text: str
+    type: Literal["text"] = "text"
+
+
+@dataclass
+class ToolUseBlock:
+    name: str
+    arguments: dict[str, Any]
+    id: str = field(default_factory=lambda: f"call_{uuid.uuid4().hex[:24]}")
+    type: Literal["tool_use"] = "tool_use"
+
+
+@dataclass
+class ToolResultBlock:
+    tool_use_id: str
+    content: str
+    is_error: bool = False
+    type: Literal["tool_result"] = "tool_result"
+
+
+ContentBlock = Union[TextBlock, ToolUseBlock, ToolResultBlock]
+
+
+@dataclass
+class Message:
+    role: Literal["system", "user", "assistant", "tool_result"]
+    content: Union[str, list[ContentBlock]]
+
+    @property
+    def text(self) -> str:
+        if isinstance(self.content, str):
+            return self.content
+        parts: list[str] = []
+        for block in self.content:
+            if isinstance(block, TextBlock):
+                parts.append(block.text)
+        return "\n".join(parts)
+
+    @property
+    def tool_calls(self) -> list[ToolUseBlock]:
+        if isinstance(self.content, str):
+            return []
+        return [b for b in self.content if isinstance(b, ToolUseBlock)]
+
+    @property
+    def tool_results(self) -> list[ToolResultBlock]:
+        if isinstance(self.content, str):
+            return []
+        return [b for b in self.content if isinstance(b, ToolResultBlock)]
+
+    @property
+    def has_tool_calls(self) -> bool:
+        return len(self.tool_calls) > 0
+
+
+@dataclass
+class ToolDef:
+    name: str
+    description: str
+    parameters: dict[str, Any]
+
+
+def text_message(role: Literal["user", "assistant", "system"], text: str) -> Message:
+    return Message(role=role, content=text)
+
+
+def assistant_message(content: list[ContentBlock]) -> Message:
+    return Message(role="assistant", content=content)
+
+
+def tool_result_message(results: list[ToolResultBlock]) -> Message:
+    return Message(role="tool_result", content=results)
