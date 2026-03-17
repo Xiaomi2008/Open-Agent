@@ -1,22 +1,24 @@
 # OpenAgent
 
-A lightweight, async-first agent framework with pluggable LLM providers.
+[![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](https://python.org)
+[![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/openagent.svg)](https://pypi.org/project/openagent/)
+
+A lightweight, async-first agent framework with pluggable LLM providers and comprehensive built-in tools.
 
 ## Features
 
-- **Multi-provider support**: OpenAI, Anthropic (Claude), Google (Gemini), Ollama, and LMStudio
-- **Claude Code-style display**: Color-coded output with diff highlighting for file operations
-- **Async-first**: Built for modern Python async/await patterns
-- **Tool support**: Easy function-to-tool conversion with `@tool` decorator
-- **Coder Agent**: Specialized agent for code editing tasks inspired by Claude Code
+- **Multi-provider support**: OpenAI (GPT), Anthropic (Claude), Google (Gemini), Ollama (local), and LMStudio
+- **Async-first**: Built for modern Python 3.11+ async/await patterns
+- **Tool system**: Easy function-to-tool conversion with `@tool` decorator
+- **Coder Agent**: Specialized agent for code editing tasks with interactive CLI
 - **MCP support**: Integrate Model Context Protocol servers for additional tools
-- **Built-in tools**: Comprehensive set of ready-to-use tools for file operations, shell execution, task management, web search, and more
+- **Built-in tools**: File operations, shell execution, task management, web search, and more
 - **Streaming**: Real-time token streaming from all providers
 - **Retry logic**: Automatic exponential backoff for transient failures
-- **Session persistence**: Save and load conversations
-- **Task tracking**: Built-in TODO manager for multi-step workflow tracking
-- **Background shell execution**: Persistent bash sessions with output retrieval
-- **Logging**: Built-in observability for debugging
+- **Session persistence**: Save and load conversations to JSON
+- **Task tracking**: Built-in TODO manager for multi-step workflow coordination
+- **Background execution**: Persistent bash sessions with output retrieval
 
 ## Installation
 
@@ -27,9 +29,10 @@ A lightweight, async-first agent framework with pluggable LLM providers.
 uv pip install openagent
 
 # Install with optional dependencies
-uv pip install "openagent[openai]"      # OpenAI
-uv pip install "openagent[anthropic]"   # Anthropic
-uv pip install "openagent[google]"      # Google
+uv pip install "openagent[openai]"      # OpenAI support
+uv pip install "openagent[anthropic]"   # Anthropic/Claude support
+uv pip install "openagent[google]"      # Google/Gemini support
+uv pip install "openagent[ollama]"      # Ollama/local models support
 uv pip install "openagent[web]"         # Web search capabilities
 uv pip install "openagent[all]"         # All providers and tools
 
@@ -45,30 +48,12 @@ uv add openagent
 pip install openagent
 
 # Install provider dependencies
-pip install openagent[openai]      # OpenAI
-pip install openagent[anthropic]   # Anthropic
-pip install openagent[google]      # Google
-pip install openagent[web]         # Web search (duckduckgo-search, httpx)
-pip install openagent[all]         # All providers and tools
+pip install "openagent[all]"  # All providers and tools
 ```
 
 ## Quick Start
 
-### Using uv (recommended)
-
-```bash
-# Create a new project with Python 3.12+
-uv init my-agent-project
-cd my-agent-project
-
-# Add openagent as a dependency
-uv add openagent
-
-# Run your agent script
-uv run python main.py
-```
-
-### Quick Start Example
+### Basic Agent
 
 ```python
 import asyncio
@@ -85,7 +70,7 @@ async def main():
         system_prompt="You are a helpful assistant.",
         tools=[get_weather],
     )
-    
+
     answer = await agent.run("What's the weather in Tokyo?")
     print(answer)
 
@@ -98,14 +83,14 @@ For code editing and development tasks, use the specialized `CoderAgent`:
 
 ```python
 import asyncio
-from openagent import CoderAgent, create_coder
+from openagent import create_coder
 
 # Quick start with defaults
 coder = await create_coder(model="gpt-4o")
 result = await coder.run("Create a new Python file with a hello world function")
 
 # Or use the full constructor for more control
-from openagent.provider.openai import OpenAIProvider
+from openagent import CoderAgent, OpenAIProvider
 
 provider = OpenAIProvider(model="gpt-4-turbo", api_key="sk-...")
 coder = CoderAgent(
@@ -118,11 +103,11 @@ result = await coder.run("Add a new endpoint to the API that handles user regist
 ```
 
 **Key Features:**
-- **File operations**: Read, write, and edit files seamlessly
-- **Code search**: Find patterns across your project with grep
-- **Shell commands**: Execute bash for testing and building
-- **Task tracking**: Automatically breaks down complex tasks into steps
-- **Working directory**: Set context for file operations
+- File operations: Read, write, and edit files seamlessly
+- Code search: Find patterns across your project with grep
+- Shell commands: Execute bash for testing and building
+- Task tracking: Automatically breaks down complex tasks into steps
+- Working directory: Set context for file operations
 
 **Quick Commands (in CLI):**
 - `@list` - List files in current directory
@@ -143,7 +128,7 @@ provider = OpenAIProvider(
 )
 ```
 
-### Anthropic
+### Anthropic (Claude)
 
 ```python
 from openagent import AnthropicProvider
@@ -156,7 +141,7 @@ provider = AnthropicProvider(
 )
 ```
 
-### Google
+### Google (Gemini)
 
 ```python
 from openagent import GoogleProvider
@@ -164,6 +149,18 @@ from openagent import GoogleProvider
 provider = GoogleProvider(
     model="gemini-2.0-flash",
     api_key="...",            # optional, uses GOOGLE_API_KEY env var
+    max_retries=3,
+)
+```
+
+### Ollama (Local Models)
+
+```python
+from openagent import OllamaProvider
+
+provider = OllamaProvider(
+    model="llama2",           # or any model available in your Ollama instance
+    base_url="http://localhost:11434",
     max_retries=3,
 )
 ```
@@ -253,13 +250,6 @@ todo_update("task_abc123", subject="[DONE] Feature A")
 
 # View all tasks with statuses
 print(todo_list())
-# Output:
-# === Task List ===
-# [INPROG] IN_PROGRESS:
-#   • [task_abc123] Implement feature A
-#     Add new functionality
-# [PENDING] PENDING:
-#   • [task_def456] Write tests
 ```
 
 #### Web & Search (requires dependencies)
@@ -318,7 +308,7 @@ skill("simplify", None)
 slash_command("/review", ["--changed-files"])
 ```
 
-#### Using Built-in Tools with Agent
+### Using Built-in Tools with Agent
 
 ```python
 from openagent import Agent, OpenAIProvider
@@ -343,7 +333,7 @@ All providers support streaming responses:
 async def stream_example():
     provider = OpenAIProvider(model="gpt-4o")
     messages = [Message(role="user", content="Tell me a story")]
-    
+
     async for chunk in provider.stream(messages):
         print(chunk, end="", flush=True)
 ```
@@ -383,25 +373,7 @@ from openagent import logger
 logger.setLevel(logging.INFO)
 ```
 
-## API Reference
-
-### Agent
-
-```python
-Agent(
-    provider: BaseProvider,      # LLM provider instance
-    system_prompt: str = "",     # System prompt for the agent
-    tools: list[Callable] = [],  # List of tool functions
-    max_turns: int = 10,         # Max conversation turns
-    agent_id: str = None,        # Optional ID for logging
-)
-
-# Methods
-await agent.run(user_input: str) -> str
-agent.messages -> list[Message]
-```
-
-### MCP Integration
+## MCP Integration
 
 Use Model Context Protocol servers to extend the Agent with additional tools:
 
@@ -424,6 +396,24 @@ async with McpClient("http://localhost:8000/sse") as mcp_client:
         provider=OpenAIProvider(model="gpt-4o"),
         mcp_client=mcp_client,
     )
+```
+
+## API Reference
+
+### Agent
+
+```python
+Agent(
+    provider: BaseProvider,      # LLM provider instance
+    system_prompt: str = "",     # System prompt for the agent
+    tools: list[Callable] = [],  # List of tool functions
+    max_turns: int = 10,         # Max conversation turns
+    agent_id: str = None,        # Optional ID for logging
+)
+
+# Methods
+await agent.run(user_input: str) -> str
+agent.messages -> list[Message]
 ```
 
 ### McpClient
@@ -474,6 +464,28 @@ tasks = manager.list_tasks(status_filter=TaskStatus.PENDING)
 
 # Get formatted summary
 summary = manager.get_summary()
+```
+
+## Project Structure
+
+```
+openagent/
+├── __init__.py                  # Public API exports
+├── core/
+│   ├── agent.py                 # Agent class — main orchestrator
+│   ├── types.py                 # Canonical types: Message, ToolUseBlock, etc.
+│   ├── tool.py                  # @tool decorator and ToolRegistry
+│   ├── session.py               # Session management and persistence
+│   ├── logging.py               # Logging configuration
+│   └── retry.py                 # Retry logic with exponential backoff
+├── provider/
+│   ├── base.py                  # BaseProvider ABC
+│   ├── anthropic.py             # Anthropic/Claude support
+│   ├── openai.py                # OpenAI/GPT support
+│   ├── google.py                # Google/Gemini support
+│   └── ollama.py                # Ollama/local models support
+├── tools/                       # Built-in tool implementations
+└── mcp.py                       # MCP client integration
 ```
 
 ## License
