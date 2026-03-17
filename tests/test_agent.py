@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from openagent import Agent, tool
-from openagent.types import Message, TextBlock, ToolResultBlock, ToolUseBlock
+from openagent.core.types import Message, TextBlock, ToolResultBlock, ToolUseBlock
 
 
 def test_agent_init(mock_provider, simple_response):

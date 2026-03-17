@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from openagent.types import Message, TextBlock, ToolDef, ToolUseBlock
+from openagent.core.types import Message, TextBlock, ToolDef, ToolUseBlock
 
 
 class MockProvider:

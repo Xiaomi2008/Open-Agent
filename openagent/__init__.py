@@ -1,5 +1,7 @@
+from openagent.coder import CoderAgent, create_coder
 from openagent.core.agent import Agent
 from openagent.core.logging import AgentLogger, configure_logging, logger
+from openagent.mcp import McpClient
 from openagent.provider.anthropic import AnthropicProvider
 from openagent.provider.base import BaseProvider
 from openagent.provider.google import GoogleProvider
@@ -21,9 +23,11 @@ __all__ = [
     "AgentLogger",
     "AnthropicProvider",
     "BaseProvider",
+    "CoderAgent",
     "ContentBlock",
     "GoogleProvider",
     "Message",
+    "McpClient",
     "OllamaProvider",
     "OpenAIProvider",
     "Session",
@@ -33,6 +37,7 @@ __all__ = [
     "ToolResultBlock",
     "ToolUseBlock",
     "configure_logging",
+    "create_coder",
     "logger",
     "tool",
 ]

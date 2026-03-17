@@ -5,8 +5,8 @@ from __future__ import annotations
 import pytest
 
 from openagent import tool
-from openagent.tool import ToolRegistry, _build_parameters_schema
-from openagent.types import ToolUseBlock
+from openagent.core.tool import ToolRegistry, _build_parameters_schema
+from openagent.core.types import ToolUseBlock
 
 
 def test_tool_decorator_basic():
