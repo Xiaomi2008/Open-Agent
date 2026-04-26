@@ -110,6 +110,7 @@ class OpenAIProvider(OpenAIConverterMixin, BaseProvider):
         model: str = "gpt-4o",
         api_key: str | None = None,
         max_retries: int = 3,
+        base_url: str | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(model=model, api_key=api_key, **kwargs)
@@ -118,7 +119,18 @@ class OpenAIProvider(OpenAIConverterMixin, BaseProvider):
             from openai import AsyncOpenAI
         except ImportError:
             raise ImportError("Install openai: pip install openai")
-        self._client = AsyncOpenAI(api_key=api_key, **kwargs)
+
+        # For local/compatible APIs (custom base_url), use empty string for API key if not provided
+        # This allows servers like Ollama, LM Studio to work without authentication
+        effective_api_key = api_key
+        if base_url and not api_key:
+            effective_api_key = ""  # Empty string tells OpenAI client no auth required
+
+        self._client = AsyncOpenAI(
+            api_key=effective_api_key,
+            base_url=base_url or None,
+            **kwargs
+        )
 
     async def chat(
         self,

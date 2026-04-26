@@ -5,6 +5,95 @@ from typing import Any, Callable
 
 # Changed imports for core modules
 from .bash_manager import BashManager, get_bash_manager
+from .display import (
+    bold, dim, cyan, green, red, white,
+    display_tool_call_claude_style, display_tool_result_claude_style,
+    format_diff_output, display_code_block, display_diff_claude_style,
+    truncate_text
+)
+
+
+def display_write_result(file_path: str, result_content: str) -> None:
+    """Display write operation result with file info."""
+    print(f"  ● {bold('write')}({cyan(f'\"{file_path}\"')})")
+
+    # Parse the success message to show bytes written
+    if 'Successfully wrote' in result_content:
+        parts = result_content.split()
+        for i, part in enumerate(parts):
+            if part == 'wrote':
+                bytes_written = parts[i + 1]
+                print(f"    ⎿ {green(bytes_written)} to {cyan(file_path)}")
+                break
+
+    # Extract and show the actual content that was written (skip the success message)
+    lines = result_content.split('\n')
+    content_start = False
+    for line in lines:
+        if 'Successfully wrote' in line:
+            continue
+        if line.strip():  # Non-empty line
+            if not content_start:
+                print()
+                content_start = True
+            print(f"    {dim(line)}")
+
+    if content_start:
+        print()
+
+
+def display_edit_result(file_path: str, result_content: str) -> None:
+    """Display edit operation result with changed lines highlighted."""
+    print(f"  ● {bold('edit')}({cyan(f'\"{file_path}\"')})")
+
+    # Check if this is a unified diff format
+    has_diff_format = '@@' in result_content and any(
+        line.startswith('+') or line.startswith('-')
+        for line in result_content.split('\n')[1:]
+    )
+
+    if has_diff_format:
+        # Parse the success message first
+        if 'Successfully made' in result_content:
+            parts = result_content.split()
+            for i, part in enumerate(parts):
+                if part == 'made':
+                    count = parts[i + 1]
+                    print(f"    ⎿ {green(count)} replacement(s) made")
+                    break
+
+        # Show the unified diff with color coding
+        lines = result_content.split('\n')
+        for line in lines:
+            if not line or 'Successfully' in line:
+                continue
+            if line.startswith('@@'):
+                print(f"  {bold(cyan(line))}")
+            elif line.startswith('+') and not line.startswith('+++'):
+                print(f"    {green(line[1:])}")
+            elif line.startswith('-') and not line.startswith('---'):
+                print(f"    {red(line[1:])}")
+            else:
+                print(f"    {dim(line)}")
+
+        return
+
+    # Fallback for non-diff format results - show full content without truncation
+    if 'Successfully made' in result_content:
+        parts = result_content.split()
+        for i, part in enumerate(parts):
+            if part == 'made':
+                count = parts[i + 1]
+                print(f"    ⎿ {green(count)} replacement(s) made")
+                break
+
+    # Show full content without truncation
+    lines = result_content.split('\n')
+    for line in lines:
+        if line.strip():
+            print(f"    {dim(line)}")
+
+
 from .logging import AgentLogger
 from .session import Session
 from .skill_manager import (
@@ -20,7 +109,8 @@ from .token_counter import (
     estimate_message_tokens,
     get_context_window,
 )
-from .types import Message, TextBlock
+from .types import Message, TextBlock, ToolUseBlock, ToolResultBlock
+from .display import format_tool_arguments
 
 # BaseProvider is likely in parent package or sibling 'provider' package
 # Since we are in core/, provider/ is '../provider/'
@@ -212,21 +302,49 @@ class Agent:
                 self._logger.run_end(turn + 1)
                 return response.text
 
-            # Log and execute tool calls in parallel
+            # Log and execute tool calls in Claude Code style
             for tc in response.tool_calls:
-                print(f"  🔧 Tool Call: {tc.name}({tc.arguments})")
-            
+                display_tool_call_claude_style(tc.name, tc.arguments)
+
             tool_tasks = [
                 self.tool_registry.execute(tc) for tc in response.tool_calls
             ]
             results = await asyncio.gather(*tool_tasks)
-            
-            # Log results
-            for result in results:
-                status = "❌" if result.is_error else "✅"
-                preview = result.content[:100] + "..." if len(result.content) > 100 else result.content
-                print(f"     {status} Result: {preview}")
-            
+
+            # Log results in Claude Code style with diff highlighting for code changes
+            for result, tc in zip(results, response.tool_calls):
+                if result.is_error:
+                    display_tool_result_claude_style(result.is_error, result.content)
+                else:
+                    content = result.content
+
+                    # Check if this is a write/edit operation that should show diff formatting
+                    is_write_operation = tc.name in ('write', 'edit')
+
+                    if is_write_operation:
+                        # Get file path from tool arguments and make it relative
+                        full_path = str(tc.arguments.get('file', tc.arguments.get('path', 'unknown')))
+
+                        try:
+                            import os
+                            cwd = os.getcwd()
+                            if full_path.startswith(cwd):
+                                rel_path = os.path.relpath(full_path, cwd)
+                            else:
+                                rel_path = full_path
+                        except Exception:
+                            rel_path = full_path
+
+                        # For write operations, show success message with file info
+                        if tc.name == 'write':
+                            display_write_result(rel_path, content)
+                        # For edit operations, try to extract and show the changed lines
+                        elif tc.name == 'edit':
+                            display_edit_result(rel_path, content)
+
+                    else:
+                        display_tool_result_claude_style(result.is_error, content)
+
             self.session.add_tool_results(list(results))
 
         self._logger.max_turns_reached()

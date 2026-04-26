@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from openagent import Session
-from openagent.types import Message, TextBlock, ToolResultBlock, ToolUseBlock
+from openagent.core.types import Message, TextBlock, ToolResultBlock, ToolUseBlock
 
 
 def test_session_init():

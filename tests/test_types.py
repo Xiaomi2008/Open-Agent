@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from openagent.types import (
+from openagent.core.types import (
     Message,
     TextBlock,
     ToolDef,
