@@ -42,6 +42,7 @@ __all__ = [
     # Logging
     "AgentLogger",
     "configure_logging",
+    "create_coder",
     "logger",
     # Types
     "ContentBlock",
