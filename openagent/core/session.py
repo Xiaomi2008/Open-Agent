@@ -41,6 +41,13 @@ class Session:
     def clear(self) -> None:
         self._messages.clear()
 
+    def replace_messages(self, messages: list[Message]) -> None:
+        """Replace the entire message list with a new list.
+
+        Used by compaction to swap out old messages for a summarized version.
+        """
+        self._messages = list(messages)
+
     def __len__(self) -> int:
         return len(self._messages)
 
