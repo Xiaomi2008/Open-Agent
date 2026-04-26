@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import importlib.util
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+
+_has_ollama = importlib.util.find_spec("ollama") is not None
 
 from openagent.core.types import (
     Message,
@@ -233,12 +236,14 @@ class TestOllamaProvider:
         call_kwargs = mock_client.chat.call_args
         assert "tools" not in call_kwargs.kwargs
 
+    @pytest.mark.skipif(not _has_ollama, reason="ollama not installed")
     async def test_custom_host(self):
         with patch("ollama.AsyncClient") as MockClient:
             MockClient.return_value = AsyncMock()
             provider = OllamaProvider(model="llama3", host="http://remote:11434")
             MockClient.assert_called_once_with(host="http://remote:11434")
 
+    @pytest.mark.skipif(not _has_ollama, reason="ollama not installed")
     async def test_default_host(self):
         with patch("ollama.AsyncClient") as MockClient:
             MockClient.return_value = AsyncMock()

@@ -491,4 +491,3 @@ openagent/
 ## License
 
 MIT
-# SoloCoder
