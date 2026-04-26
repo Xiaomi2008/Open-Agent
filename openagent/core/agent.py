@@ -110,7 +110,6 @@ from .token_counter import (
     get_context_window,
 )
 from .types import Message, TextBlock, ToolUseBlock, ToolResultBlock
-from .display import format_tool_arguments
 
 # BaseProvider is likely in parent package or sibling 'provider' package
 # Since we are in core/, provider/ is '../provider/'
